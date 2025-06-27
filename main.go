@@ -13,5 +13,9 @@ func main() {
 			"message": "pong",
 		})
 	})
+
+	router.GET("ascii-json/", AsciiJson)
+	router.POST("req-body/", BindRequestBody)
+
 	router.Run()
 }
