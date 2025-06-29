@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +41,17 @@ func main() {
 	router.GET("/errorhandler/middleware", func(ctx *gin.Context) {
 		ctx.Error(errors.New("something went wrong"))
 	})
+	// async calls should use the copy of original context, should use only readonly copy.
+	router.GET("/goroutine", func(ctx *gin.Context) {
+		copy_context := ctx.Copy()
+		go func() {
+			time.Sleep(5 * time.Second)
+			log.Println("Done! in path " + copy_context.Request.URL.Path)
+		}()
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "DONE",
+		})
+	})
 
 	server := &http.Server{
 		Addr:           ":8080",
@@ -45,5 +61,22 @@ func main() {
 		MaxHeaderBytes: 1 << 20, // 1MB
 	}
 
-	server.ListenAndServe()
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Listen: %s\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown: ", err)
+	}
+	log.Println("Server exiting")
+
 }
