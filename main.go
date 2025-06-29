@@ -25,7 +25,10 @@ func main() {
 		v.RegisterValidation("mobile", mobileNumberValidator)
 	}
 
-	router.GET("/", func(ctx *gin.Context) {
+	v1 := router.Group("/v1")
+	v2 := router.Group("/v2") // all sync calls goes to group v2
+
+	v1.GET("/", func(ctx *gin.Context) {
 		val := ctx.MustGet("middleware").(string)
 		ctx.JSON(http.StatusOK, gin.H{
 			"message":    "pong",
@@ -33,16 +36,17 @@ func main() {
 		})
 	})
 
-	router.GET("/ascii-json", AsciiJson)
-	router.POST("/req-body", BindRequestBody)
-	router.GET("/query-param", BindQueryParams)
-	router.GET("/path-param/:name/:id", BindPathParams)
-	router.POST("/hotel/booking", HotelBooking)
-	router.GET("/errorhandler/middleware", func(ctx *gin.Context) {
+	v1.GET("/ascii-json", AsciiJson)
+	v1.POST("/req-body", BindRequestBody)
+	v1.GET("/query-param", BindQueryParams)
+	v1.GET("/path-param/:name/:id", BindPathParams)
+	v1.POST("/hotel/booking", HotelBooking)
+	v1.GET("/errorhandler/middleware", func(ctx *gin.Context) {
 		ctx.Error(errors.New("something went wrong"))
 	})
+
 	// async calls should use the copy of original context, should use only readonly copy.
-	router.GET("/goroutine", func(ctx *gin.Context) {
+	v2.GET("/goroutine", func(ctx *gin.Context) {
 		copy_context := ctx.Copy()
 		go func() {
 			time.Sleep(5 * time.Second)
