@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 func main() {
 	router := gin.Default()
 	router.Use(Logger()) // activating middleware
+	router.Use(ErrorHandler())
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("bookabledate", bookableDate)
@@ -31,6 +33,9 @@ func main() {
 	router.GET("/query-param", BindQueryParams)
 	router.GET("/path-param/:name/:id", BindPathParams)
 	router.POST("/hotel/booking", HotelBooking)
+	router.GET("/errorhandler/middleware", func(ctx *gin.Context) {
+		ctx.Error(errors.New("something went wrong"))
+	})
 
 	server := &http.Server{
 		Addr:           ":8080",
